@@ -1,0 +1,113 @@
+---
+title: "Stat 184 SP-22 Final Project"
+author: "Matthew Steyers"
+date: "Monday, May  2, 2022"
+output: html_notebook
+---
+
+
+### Load Packages and Data
+```{r message=FALSE, warning=TRUE}
+library(lubridate)
+library(tidyverse)
+Movies <- read.csv(file = "Movies.csv", header = T)
+Ratings <-  read.csv(file = "Ratings.csv", header = T)
+Tags <- read.csv(file = "Tags.csv", header = T)
+```
+
+### Convert the timestamp data to the actual date
+```{r message=FALSE, warning=TRUE}
+Tags <- Tags %>%
+  group_by_all()%>%
+  summarise(tag_date = as_datetime(timestamp), .groups = "keep")
+  
+head(Tags,3)
+
+Ratings <- Ratings %>%
+  group_by_all()%>%
+  summarise(rating_date = as_datetime(timestamp), .groups = "keep")
+
+head(Ratings,3)
+```
+
+### Join data where person both rated and tagged movie
+```{r message=FALSE, warning=TRUE}
+tagandrate <- left_join(Tags, Ratings, by = c("userId"="userId","movieId"="movieId"))
+
+moviejoin <- full_join(tagandrate, Movies, by = "movieId")%>%
+  na.omit%>%
+  ungroup()%>%
+  select(userId, rating, rating_date, tag, tag_date, title, genres)
+
+head(moviejoin,3)
+```
+
+### New Variable: Release Year
+```{r message=FALSE, warning=TRUE}
+releaseyear <- moviejoin%>%
+  mutate(release_year = str_extract(string = title, pattern = "(\\((\\d+)\\).*)"))
+head(releaseyear,3)
+```
+
+### Top 10 rated movie genres
+```{r message=FALSE, warning=TRUE}
+ratedgenres <- Movies %>%
+  semi_join(Movies, Ratings, by = "movieId")
+
+ratedgenres%>%
+  group_by(genres)%>%
+  summarise(number_rows = n())%>%
+  arrange(desc(number_rows))%>%
+  head(n=10L)
+
+
+ratedgenres%>%
+  group_by(genres)%>%
+  summarise(number_rows = n())%>%
+  arrange(desc(number_rows))%>%
+  head(n=10L)%>%
+  ggplot(aes(x= genres, y  = number_rows, fill = genres))+
+  geom_bar(stat = "identity")+
+  xlab("Genre")+
+  ylab("Amount of Times Rated")+
+  labs(title = "Top 10 Genres Rates Most Frequently")+
+  theme(axis.text.x = element_text(angle = 90))
+
+
+
+```
+This graph showcases the frequency of genres that were rated according to the movieID. Solely Dramas and solely comedies were the two variables that were rated the most within this data set. Over 1000 solely drama movies were rated. The least amount od ratings came from solely horror or combinations of drama|thriller or horror|thriller. There seems to be a seem to be a theme there.  
+
+###  My own question
+#### Out of the movies both rated and tagged,  what are the 5 most popular tags used?
+```{r}
+mostpoptags<-releaseyear%>%
+  group_by(tag)%>%
+  summarise(populartags = n())%>%
+  arrange(desc(populartags))%>%
+  head(n=5L)
+head(mostpoptags)
+
+releaseyear%>%
+  group_by(tag)%>%
+  summarise(populartags = n())%>%
+  arrange(desc(populartags))%>%
+  head(n=5L)%>%
+  ggplot(aes(x= tag, y  = populartags, fill = tag))+
+  geom_bar(stat = "identity")+
+  xlab("Tag used")+
+  ylab("Amount of times specific tag is used")+
+  labs(title = "Top 5 most utilized tags")
+
+
+```
+The most popular tags used within our study question was in Netflix que just a little above 50. A surprising utilized tag that is the second  most utilized is atmospheric. The next three are all tied: superhero, disney, and funny. Funny relates to our other graph as solely comedies were in second place. 
+
+### Resources
+Attached are links I used to help me complete my final project and r code
+https://dtkaplan.github.io/DataComputingEbook/chap-graphics-commands.html#chap:graphics-commands
+https://cran.r-project.org/web/packages/stringr/vignettes/regular-expressions.html
+https://statisticsglobe.com/convert-unix-timestamp-to-date-object-in-r
+https://ggplot2.tidyverse.org/reference/geom_bar.html
+
+
